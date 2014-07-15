@@ -352,7 +352,7 @@ def validSubject(subject):
 def parseMailbox(config):
     mbox = mailbox.MH(config['maildir'])
 
-    read = set(mbox.get_sequences().get('read', ''))
+    read = set(mbox.get_sequences().get('read'))
     unread = set(mbox.iterkeys()) - read
 
     for msg_id in unread:
