@@ -3,6 +3,7 @@
 import os
 import json
 import sys
+import requests
 from flask import Flask, request
 from functools import wraps
 from datetime import date, timedelta
@@ -72,6 +73,19 @@ def run_alert_query():
     inputid = request.args['id']
     return { 'alerts': run_query("where id=%s" % inputid, True) }
 
+@app.route('/bugzilla_reports')
+@json_response
+def run_bugzilla_query():
+    query_dict = request.args.to_dict()
+    date = query_dict['date']
+    url = 'https://bugzilla.mozilla.org/rest/bug'
+    if date == "none":
+        u = url +"?whiteboard=[talos_regression]&status:RESOLVED&include_fields=id,status,resolution,creation_time,cf_last_resolved"
+    else:
+        u = url +"?whiteboard=[talos_regression]&status:RESOLVED&creation_time="+date+"&include_fields=id,status,resolution,creation_time,cf_last_resolved"
+    search_results = requests.get(u)
+    return { 'bugs': search_results.text }  
+    
 @app.route('/graph/flot')
 @json_response
 def run_graph_flot_query():
@@ -100,7 +114,7 @@ def run_graph_flot_query():
         data['bug'].append(i[1])
     cursor.close()
     db.close()
-    return {'alerts': data} 
+    return {'alerts': data}
 
 @app.route('/mergedids')
 @json_response
@@ -167,7 +181,7 @@ def run_values_query():
     tests = cursor.fetchall()
     for test in tests:
         retVal['test'].append(test)
-        
+
     cursor.execute("select DISTINCT platform from alerts;")
     platforms = cursor.fetchall()
 
@@ -180,7 +194,7 @@ def run_values_query():
     for rev in revs:
         retVal['rev'].append(rev)
 
-       
+
     return retVal
 
 @app.route("/mergedalerts")
@@ -197,7 +211,7 @@ def run_submit_data():
     retVal = {}
     data = request.form
 
-    sql = "update alerts set comment='%s', status='%s', email='%s', bug='%s' where id=%s;" % (data['comment'][0], data['status'], data['email'], data['bug'], data['id'])
+    sql = "update alerts set comment='%s', email='%s' where id=%s;" % (data['comment'][0], data['email'], data['id'])
 
     db = create_db_connnection()
     cursor = db.cursor()
@@ -288,10 +302,10 @@ def getConfig():
     parser.read(options.config)
 
     app.config.update({
-        'username': parser.get('alerts', 'username'), 
-        'password': parser.get('alerts', 'password'), 
-        'host': parser.get('alerts', 'host'), 
-        'database': parser.get('alerts', 'database'), 
+        'username': parser.get('alerts', 'username'),
+        'password': parser.get('alerts', 'password'),
+        'host': parser.get('alerts', 'host'),
+        'database': parser.get('alerts', 'database'),
         'maildir': parser.get('alerts', 'maildir'),
         'DEBUG': parser.getboolean('alerts', 'debug'),
     })
